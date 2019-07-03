@@ -3,6 +3,7 @@
 ```bash
 sbt 'core/test:runMain gcd.GCDMain'
 sbt 'core/test:runMain test.MacroTest'
+sbt 'testAutoReg'
 ```
 
 ## Reference

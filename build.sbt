@@ -63,6 +63,13 @@ lazy val coreSettings = Seq(
 lazy val autoRegBundle: Project = Project("auto-reg-bundle", file("."))
   .settings(buildSettings)
   .settings(Seq(run := (run in Compile in core).evaluated))
+  .settings(
+    addCommandAlias("testAutoReg",
+      "; clean " +
+      "; core/test:runMain autoreg.AutoRegMain "
+        + "--target-dir genstuff --top-name AutoRegDemo"
+    )
+  )
   .aggregate(macros, core)
 
 lazy val core: Project = Project("core", file("core"))
