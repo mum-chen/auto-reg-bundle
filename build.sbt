@@ -1,4 +1,5 @@
-// See README.md for license details.
+import sbt._
+import Keys._
 
 def scalacOptionsVersion(scalaVersion: String): Seq[String] = {
   Seq() ++ {
@@ -26,28 +27,47 @@ def javacOptionsVersion(scalaVersion: String): Seq[String] = {
   }
 }
 
-name := "auto-reg-bundle"
-
-version := "3.1.1"
-
-scalaVersion := "2.12.7"
-
-crossScalaVersions := Seq("2.12.7")
-
-resolvers ++= Seq(
-  Resolver.sonatypeRepo("snapshots"),
-  Resolver.sonatypeRepo("releases")
-)
-
 // Provide a managed dependency on X if -DXVersion="" is supplied on the command line.
 val defaultVersions = Map(
   "chisel3" -> "3.1.+",
   "chisel-iotesters" -> "[1.2.5,1.3-SNAPSHOT["
   )
 
-libraryDependencies ++= Seq("chisel3","chisel-iotesters").map {
-  dep: String => "edu.berkeley.cs" %% dep % sys.props.getOrElse(dep + "Version", defaultVersions(dep)) }
+val paradiseVersion = "2.1.0"
+lazy val buildSettings = Seq(
+  organization := "org.macrotest",
+  version := "1.0.0",
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.12.7"),
+  resolvers += Resolver.sonatypeRepo("snapshots"),
+  resolvers += Resolver.sonatypeRepo("releases"),
+  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+  libraryDependencies += scalaVersion("org.scala-lang" % "scala-reflect" % _).value,
+  libraryDependencies ++= (
+    if (scalaVersion.value.startsWith("2.10")) List("org.scalamacros" %% "quasiquotes" % paradiseVersion)
+    else Nil
+  )
+)
 
-scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
+lazy val coreSettings = Seq(
+  libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  libraryDependencies ++= Seq("chisel3","chisel-iotesters").map {
+    dep: String => "edu.berkeley.cs" %% dep %
+                   sys.props.getOrElse(dep + "Version", defaultVersions(dep))
+  },
 
-javacOptions ++= javacOptionsVersion(scalaVersion.value)
+  scalacOptions ++= scalacOptionsVersion(scalaVersion.value),
+  javacOptions ++= javacOptionsVersion(scalaVersion.value),
+)
+
+lazy val autoRegBundle: Project = Project("auto-reg-bundle", file("."))
+  .settings(buildSettings)
+  .settings(Seq(run := (run in Compile in core).evaluated))
+  .aggregate(macros, core)
+
+lazy val core: Project = Project("core", file("core"))
+  .settings(buildSettings, coreSettings)
+  .dependsOn(macros)
+
+lazy val macros: Project = Project("macros", file("macros"))
+  .settings(buildSettings)
